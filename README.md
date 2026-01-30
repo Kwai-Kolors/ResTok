@@ -67,8 +67,8 @@ Our pre-trained models are publicly available at the following links. You can do
 
 | Model             | Links                                                                                    | Performance | #Param. | 
 |-------------------|------------------------------------------------------------------------------------------|-------------|---------|
-| ResTok            | [Hugging Face](https://huggingface.co/Kwai-Kolors/restok_l_128.r256_in1k)                | rFID = 1.28 | 662M    |
-| LlamaGen with HAR | [Hugging Face](https://huggingface.co/Kwai-Kolors/llamagen_l_c2i_restok_l_128.r256_in1k) | gFID = 2.34 | 326M    |
+| ResTok            | [Hugging Face](https://huggingface.co/xushu-me/restok_l_128.r256_in1k)                | rFID = 1.28 | 662M    |
+| LlamaGen with HAR | [Hugging Face](https://huggingface.co/xushu-me/llamagen_l_c2i_restok_l_128.r256_in1k) | gFID = 2.34 | 326M    |
 
 Before evaluating generation, please refer [evaluation readme](evaluations/c2i/README.md) to install required packages.
 
