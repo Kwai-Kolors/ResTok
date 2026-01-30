@@ -65,8 +65,8 @@ pip install -r requirements.txt
 
 Our pre-trained models are publicly available at the following links. You can download the model weights to a local directory and modify the corresponding checkpoint paths in the [config](./configs/infer/ResTok/llamagen_l_c2i_restok_l_128.yaml) for inference.
 
-| Model             | Links                                                                                    | Performance | #Param. | 
-|-------------------|------------------------------------------------------------------------------------------|-------------|---------|
+| Model             | Links                                                                                 | Performance | #Param. | 
+|-------------------|---------------------------------------------------------------------------------------|-------------|---------|
 | ResTok            | [Hugging Face](https://huggingface.co/xushu-me/restok_l_128.r256_in1k)                | rFID = 1.28 | 662M    |
 | LlamaGen with HAR | [Hugging Face](https://huggingface.co/xushu-me/llamagen_l_c2i_restok_l_128.r256_in1k) | gFID = 2.34 | 326M    |
 
