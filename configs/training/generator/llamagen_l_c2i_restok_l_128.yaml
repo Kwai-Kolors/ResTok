@@ -1,0 +1,113 @@
+experiment:
+    project: "llamagen_c2i_restok"
+    name: "llamagen_l_c2i_run1_restok_l_128_run1"
+    output_dir: "./output/llamagen_l_c2i_run1_restok_l_128_run1"
+    max_train_examples: 1_281_167
+    save_every: 5_000
+    eval_every: 50_000
+    generate_every: 5_000
+    log_every: 50
+    log_grad_norm_every: 1_000
+    resume: True
+    tokenizer_checkpoint: "./output/restok_l_128_run1/checkpoint-750000/ema_model/pytorch_model.bin"
+
+
+model:
+    vq_model:
+        codebook_size: 8192
+        token_size: 8
+        use_l2_norm: True
+        commitment_cost: 0.25
+        entropy_loss_ratio: 0.0
+        # vit arch
+        vit_enc_model_size: "large"
+        vit_dec_model_size: "large"
+        vit_enc_patch_size: 16
+        vit_dec_patch_size: 16
+        rope_base_len: 10_000
+        num_latent_tokens: 128
+        num_min_tokens: 4
+        test_num_latent_tokens: 128
+        merge_tokens: True
+        hierarchy_stages: 4
+        reduction_ratio: 0.5
+        residual_image_tokens: True
+        residual_latent_tokens: True
+        learnable_latent_tokens: False
+        learnable_dec_image_tokens: True
+        multi_quant: True
+        vae_encoder: True
+        drop_latent_tokens: False
+        latent_hierarchy: True
+        encoder_feature_supervision: False
+        decoder_feature_supervision: False
+        learnable_dec_feat_tokens: True
+
+    generator:
+        model_type: "GPT-L"
+
+        # sampling hyper-params on the flight
+        randomize_temperature: 1.0
+        guidance_scale: 2.0
+        guidance_decay: "constant"
+        num_steps: ${model.vq_model.test_num_latent_tokens}
+        ar_token_num: ${model.vq_model.num_min_tokens}
+        spe_token_num: 127
+
+        # original specifications from LlamaGen
+        vocab_size: ${model.vq_model.codebook_size}
+        block_size: ${model.vq_model.num_latent_tokens}
+        num_classes: 1000
+        cls_token_num: 1 # max token number of condition input
+        gpt_type: "c2i" # class-conditional (c2i) or text-conditional (t2i)
+        dropout_p: 0.1 # dropout_p of resid_dropout_p and ffn_dropout_p
+        token_dropout_p: 0.1 # dropout_p of token_dropout_p
+        drop_path_rate: 0.0 # using stochastic depth decay
+
+        rope: True
+
+        har: True
+
+
+dataset:
+    params:
+        pretokenization: "./pretokenization/restok_l_128_run1/"
+        train_shards_path_or_url: "../datasets/imagenet-1k-wds/imagenet1k-train-{0000..1023}.tar"
+        eval_shards_path_or_url: "../datasets/imagenet-1k-wds/imagenet1k-validation-{0000..0063}.tar"
+        num_workers_per_gpu: 12
+    preprocessing:
+        resize_with_crop: 1.1
+        resize_shorter_edge: 256 # only for eval
+        crop_size: 256
+        random_crop: True
+        random_flip: True
+
+
+optimizer:
+    name: adamw 
+    params:
+        learning_rate: 1e-4
+        beta1: 0.9
+        beta2: 0.95
+        weight_decay: 0.05
+
+
+lr_scheduler:
+    scheduler: "cosine"
+    params:
+        learning_rate: ${optimizer.params.learning_rate}
+        warmup_steps: 5_000
+        end_lr: 1e-5
+
+
+training:
+    gradient_accumulation_steps: 1
+    per_gpu_batch_size: 32 # 8 GPUs, total batch size 256
+    mixed_precision: "bf16"
+    enable_tf32: True
+    enable_wandb: True
+    use_ema: True
+    ema_decay: 0.9999 # originally 0.9999 in LlamaGen
+    seed: 10086
+    max_train_steps: 1_500_000 # 300 epochs on ImageNet with batch size 256
+    max_grad_norm: 1.0
