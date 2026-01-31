@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href='https://arxiv.org/abs/2601.03955'>
-  <img src='https://img.shields.io/badge/Arxiv-2601.03955-A42C25?style=flat&logo=arXiv&logoColor=A42C25'></a> 
+  <img src='https://img.shields.io/badge/arXiv-2601.03955-A42C25?style=flat&logo=arXiv&logoColor=A42C25'></a> 
   <a href='https://huggingface.co/xushu-me/restok_l_128.r256_in1k'>
   <img src='https://img.shields.io/badge/%F0%9F%A4%97%20Model-ResTok-yellow'></a>
   <a href='https://huggingface.co/xushu-me/llamagen_l_c2i_restok_l_128.r256_in1k'>
@@ -82,7 +82,7 @@ bash scripts/sample_c2i_search_cfg.sh --config configs/infer/ResTok/llamagen_l_c
 
 ### 3. Training
 
-We use [webdataset](https://github.com/webdataset/webdataset) format for data loading. To begin with, it is needed to convert the dataset into webdataset format. You can get the converted dataset directly from [hugging face](https://huggingface.co/datasets/timm/imagenet-1k-wds). Alternatively, you can manually convert ImageNet to wds format via an example script provided [here](./dataset/convert_imagenet_to_wds.py).
+We use [webdataset](https://github.com/webdataset/webdataset) format for data loading. To begin with, it is needed to convert the dataset into webdataset format. You can get the converted dataset directly from [hugging face](https://huggingface.co/datasets/timm/imagenet-1k-wds). Alternatively, you can manually convert ImageNet to wds format via an example script provided [here](./dataset/convert_imagenet_to_wds.py). Please note that the scripts for extracting code for LlamaGen currently only support the [original format](https://huggingface.co/datasets/ILSVRC/imagenet-1k) of the ImageNet dataset (unsharded), as per the LlamaGen implementation.
 
 We provide example commands to train ResTok and LlamaGen as follows:
 ```bash
