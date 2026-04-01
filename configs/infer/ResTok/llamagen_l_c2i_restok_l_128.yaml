@@ -76,7 +76,7 @@ dataset:
 training:
     gradient_accumulation_steps: 1
     per_gpu_batch_size: 32
-    mixed_precision: "none"
+    mixed_precision: "no"
     enable_tf32: True
     enable_wandb: True
     use_ema: True
