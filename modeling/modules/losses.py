@@ -283,10 +283,12 @@ class ReconstructionLoss(torch.nn.Module):
 class ARLoss(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.target_vocab_size = config.model.vq_model.codebook_size
+        self.target_vocab_size = config.model.generator.vocab_size
+        self.target_block_size = config.model.generator.block_size
         self.criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
     def forward(self, logits: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, Mapping[Text, torch.Tensor]]:
+        labels = labels[:,:self.target_block_size]
         shift_logits = logits.permute(0, 2, 1).contiguous() if logits.shape[-2] == labels.shape[-1] else logits[..., :-1, :].permute(0, 2, 1).contiguous() # NLC->NCL
         shift_labels = labels.contiguous()
         shift_logits = shift_logits.view(shift_logits.shape[0], self.target_vocab_size, -1)
