@@ -469,6 +469,29 @@ class ResTokEncoder(nn.Module):
             config.model.vq_model.get("rope_base_len", 10000),
             [self.width//self.num_heads//2 for _ in range(2)],
         )
+        # Plain dict caches (not buffers, excluded from state_dict) for tensors
+        # that are pure functions of shapes/positions. Entries are created by
+        # the exact same computation as before, so cached results are
+        # bit-identical to recomputing them.
+        self._rope_cache = {}
+        self._mask_cache = {}
+
+    def _cached_rope(self, hw_list, text_length, device):
+        if torch.compiler.is_compiling():
+            return self.rope2d(hw_list=hw_list, text_length=text_length, text_first=False, device=device)
+        key = (tuple(tuple(hw) for hw in hw_list), text_length, device)
+        if key not in self._rope_cache:
+            self._rope_cache[key] = self.rope2d(
+                hw_list=hw_list, text_length=text_length, text_first=False, device=device)
+        return self._rope_cache[key]
+
+    def _cached_mask(self, block_sizes, device):
+        if torch.compiler.is_compiling():
+            return build_hierarchical_causal_mask(block_sizes, device=device)
+        key = (tuple(block_sizes), device)
+        if key not in self._mask_cache:
+            self._mask_cache[key] = build_hierarchical_causal_mask(block_sizes, device=device)
+        return self._mask_cache[key]
 
     def forward(self, pixel_values, latent_tokens=None, return_attn=False, avg_attn=True):
         batch_size = pixel_values.shape[0]
@@ -510,11 +533,11 @@ class ResTokEncoder(nn.Module):
 
         image_tokens_blocks = [num_image_tokens]
         latent_tokens_blocks = self.nested_dropout_blocks
-        attn_mask = build_hierarchical_causal_mask(image_tokens_blocks + latent_tokens_blocks, device=x.device)
+        attn_mask = self._cached_mask(image_tokens_blocks + latent_tokens_blocks, x.device)
 
         for i in range(self.num_layers):
             reduction_ratio = self.reduction_ratio[i]
-            rope2d = self.rope2d(hw_list=hw_list, text_length=length, text_first=False, device=x.device)
+            rope2d = self._cached_rope(hw_list, length, x.device)
             x, attn_weights = self.blocks[i](
                 x,
                 num_image_tokens,
@@ -530,7 +553,7 @@ class ResTokEncoder(nn.Module):
             if reduction_ratio > 0:
                 num_image_tokens = int(num_image_tokens * (1 - reduction_ratio))
                 image_tokens_blocks = [num_image_tokens] + image_tokens_blocks
-                attn_mask = build_hierarchical_causal_mask(image_tokens_blocks + latent_tokens_blocks, device=x.device)
+                attn_mask = self._cached_mask(image_tokens_blocks + latent_tokens_blocks, x.device)
                 x[:, :num_image_tokens] = x[:, :num_image_tokens] + self.level_embedding[hiera_level].to(x.dtype)
                 hiera_level = hiera_level + 1
                 hw_list.insert(0, [hw_list[0][0], int(hw_list[0][1] * (1 - reduction_ratio))])
@@ -678,6 +701,10 @@ class ResTokDecoder(nn.Module):
             config.model.vq_model.get("rope_base_len", 10000),
             [self.width//self.num_heads//2 for _ in range(2)],
         )
+        # Cache for the RoPE table, which is a pure function of (grid, seq_len).
+        # The original path builds it on CPU and copies it to the device every
+        # forward; entries here are created by that exact computation once.
+        self._rope_cache = {}
 
         n = len(self.nested_dropout_list)
         drop_prob = config.model.vq_model.get("drop_prob", 0.2)
@@ -685,6 +712,16 @@ class ResTokDecoder(nn.Module):
             weights = [2 ** i for i in range(n-1)] + [sum(2 ** i for i in range(n-1)) * (int(1/drop_prob) - 1)]
             total = sum(weights)
             self.nested_dropout_probs = [w / total for w in weights]
+
+    def _cached_rope(self, text_length, device):
+        if torch.compiler.is_compiling():
+            return self.rope2d(
+                h=self.grid_size, w=self.grid_size, text_length=text_length, text_first=True).to(device)
+        key = (self.grid_size, text_length, device)
+        if key not in self._rope_cache:
+            self._rope_cache[key] = self.rope2d(
+                h=self.grid_size, w=self.grid_size, text_length=text_length, text_first=True).to(device)
+        return self._rope_cache[key]
 
     def forward(self, z_quantized, num_latent_tokens=32, return_attn=False, avg_attn=True):
         N, C, H, W = z_quantized.shape
@@ -734,7 +771,7 @@ class ResTokDecoder(nn.Module):
             n_sum = n_sum + n
         x = torch.cat([x, mask_tokens], dim=1)
 
-        rope2d = self.rope2d(h=self.grid_size, w=self.grid_size, text_length=seq_len, text_first=True).to(x.device)
+        rope2d = self._cached_rope(seq_len, x.device)
 
         x = self.ln_pre(x)
         if return_attn:
